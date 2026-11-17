@@ -1,0 +1,23 @@
+# 构建产物
+android/build/
+*.apk
+*.idsig
+*.class
+*.dex
+
+# 签名与密钥
+*.keystore
+*.jks
+*.pem
+password.txt
+
+# 运行数据与密钥（部署时生成的私有目录）
+*_private/
+server/data/
+*.log
+smtp_config.json
+*.tmp.*
+
+# 系统文件
+.DS_Store
+Thumbs.db
