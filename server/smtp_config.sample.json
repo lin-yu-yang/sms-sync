@@ -1,0 +1,9 @@
+{
+  "host": "smtp.163.com",
+  "port": 465,
+  "secure": "ssl",
+  "user": "your_account@163.com",
+  "pass": "your_smtp_auth_code",
+  "from": "your_account@163.com",
+  "fromName": "短信同步"
+}

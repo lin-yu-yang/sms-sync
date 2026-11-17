@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>短信同步 - 免费使用</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📨</text></svg>">
+<style>
+    :root {
+        --accent: #00e599;
+        --accent-soft: rgba(0, 229, 153, 0.10);
+        --accent-line: rgba(0, 229, 153, 0.38);
+        --bg-dark: #0a0a0a;
+        --bg-card: rgba(255, 255, 255, 0.03);
+        --bg-hover: rgba(255, 255, 255, 0.06);
+        --text-primary: #ffffff;
+        --text-secondary: #a1a1aa;
+        --text-muted: rgba(255, 255, 255, 0.45);
+        --border: rgba(255, 255, 255, 0.09);
+        --danger: #ef4444;
+        --radius: 12px;
+        --trans: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif;
+        background: var(--bg-dark); color: var(--text-primary);
+        min-height: 100vh; line-height: 1.6; -webkit-font-smoothing: antialiased;
+    }
+    .top {
+        position: sticky; top: 0; z-index: 20;
+        background: rgba(10, 10, 10, 0.88);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: 12px;
+    }
+    .top-row { display: flex; align-items: center; gap: 10px; max-width: 900px; margin: 0 auto; }
+    .back {
+        color: var(--text-secondary); text-decoration: none; font-size: 20px;
+        width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+        border-radius: 9px; transition: var(--trans); flex-shrink: 0;
+    }
+    .back:hover { background: var(--bg-hover); color: var(--accent); }
+    .title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; flex: 1; }
+    .title small { display: block; font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0; }
+    .icon-btn {
+        background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);
+        width: 34px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 15px;
+        display: flex; align-items: center; justify-content: center; transition: var(--trans); flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent-line); }
+    .icon-btn.spinning { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .search-row { max-width: 900px; margin: 10px auto 0; display: flex; gap: 8px; }
+    .search-row input {
+        flex: 1; min-width: 0; background: var(--bg-card); border: 1px solid var(--border);
+        color: var(--text-primary); border-radius: 9px; padding: 8px 12px; font-size: 13px;
+        font-family: inherit; outline: none; transition: var(--trans);
+    }
+    .search-row input::placeholder { color: var(--text-muted); }
+    .search-row input:focus { border-color: var(--accent-line); background: rgba(0, 229, 153, 0.04); }
+
+    .wrap { max-width: 900px; margin: 0 auto; padding: 14px 16px calc(40px + env(safe-area-inset-bottom, 0px)); }
+
+    .stats {
+        display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+        font-size: 12px; color: var(--text-muted);
+    }
+    .stats span { background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+    .stats b { color: var(--accent); font-weight: 600; }
+
+    .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip {
+        flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border);
+        color: var(--text-secondary); border-radius: 999px; padding: 5px 12px;
+        font-size: 12px; cursor: pointer; transition: var(--trans); white-space: nowrap;
+    }
+    .chip:hover { border-color: var(--accent-line); color: var(--text-primary); }
+    .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+    .msg {
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+        padding: 12px 14px; margin-bottom: 10px; transition: var(--trans); position: relative;
+    }
+    .msg:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.16); }
+    .msg-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+    .sender { font-size: 14px; font-weight: 700; color: var(--text-primary); word-break: break-all; }
+    .time { font-size: 11px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+    .device {
+        font-size: 10px; color: var(--accent); background: var(--accent-soft);
+        border: 1px solid var(--accent-line); border-radius: 999px; padding: 1px 7px; font-weight: 600;
+    }
+    .body { font-size: 13.5px; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; line-height: 1.7; }
+    .msg-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .del {
+        background: none; border: none; color: var(--text-muted); font-size: 11px;
+        cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: var(--trans); font-family: inherit;
+    }
+    .del:hover { background: rgba(239, 68, 68, 0.12); color: var(--danger); }
+
+    .empty, .gate { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 13px; }
+    .gate h2 { font-size: 17px; color: var(--text-primary); margin-bottom: 8px; }
+    .gate p { margin-bottom: 18px; line-height: 1.8; }
+    .gate a {
+        display: inline-block; padding: 10px 22px; border-radius: 9px; background: var(--accent);
+        color: #05130d; font-weight: 700; font-size: 13px; text-decoration: none;
+    }
+    .gate a.secondary { background: transparent; border: 1px solid var(--accent-line); color: var(--accent); margin-left: 8px; }
+
+    .footer-note {
+        margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);
+        font-size: 11.5px; color: var(--text-muted); line-height: 1.9;
+    }
+    .footer-note a { color: var(--accent); text-decoration: none; }
+    .toast {
+        position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 20px);
+        background: #111; border: 1px solid var(--accent-line); color: var(--text-primary);
+        padding: 9px 16px; border-radius: 999px; font-size: 12.5px; opacity: 0;
+        pointer-events: none; transition: var(--trans); z-index: 50;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .pair-mask {
+        position: fixed; inset: 0; z-index: 60; padding: 20px;
+        background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .pair-box {
+        width: 100%; max-width: 340px; text-align: center;
+        background: #111; border: 1px solid var(--accent-line); border-radius: 14px;
+        padding: 22px 20px;
+    }
+    .pair-box h3 { font-size: 14px; margin-bottom: 6px; }
+    .pair-code {
+        font-size: 34px; font-weight: 800; letter-spacing: 8px; color: var(--accent);
+        margin: 12px 0 14px; font-variant-numeric: tabular-nums;
+    }
+    .pair-box p { font-size: 12px; color: var(--text-muted); line-height: 1.8; }
+    .pair-close {
+        margin-top: 16px; width: 100%; height: 38px; border-radius: 9px; cursor: pointer;
+        background: transparent; border: 1px solid var(--accent-line); color: var(--accent);
+        font-size: 13px; font-family: inherit; transition: var(--trans);
+    }
+    .pair-close:hover { background: var(--accent-soft); }
+
+    .admin-box {
+        width: 100%; max-width: 560px; text-align: left; max-height: 76vh; overflow-y: auto;
+        background: #111; border: 1px solid var(--accent-line); border-radius: 14px; padding: 20px;
+    }
+    .admin-box h3 { font-size: 15px; margin-bottom: 4px; }
+    .admin-box .hint { font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.8; }
+    .admin-row {
+        display: flex; align-items: center; gap: 8px; padding: 9px 0;
+        border-top: 1px solid var(--border); font-size: 12px;
+    }
+    .admin-row .who { flex: 1; min-width: 0; }
+    .admin-row .name { color: var(--text-primary); font-weight: 600; word-break: break-all; }
+    .admin-row .meta { color: var(--text-muted); font-size: 11px; word-break: break-all; }
+    .admin-row button {
+        flex-shrink: 0; background: none; border: 1px solid var(--border); color: var(--text-muted);
+        border-radius: 6px; padding: 4px 9px; font-size: 11px; font-family: inherit; cursor: pointer;
+    }
+    .admin-row button:hover { color: var(--danger); border-color: var(--danger); }
+    .admin-row button.unban:hover { color: var(--accent); border-color: var(--accent-line); }
+    .admin-row.banned .name { color: var(--text-muted); text-decoration: line-through; }
+
+    .auth { max-width: 380px; margin: 10px auto 0; padding: 22px 20px; background: var(--bg-card);
+        border: 1px solid var(--border); border-radius: 14px; }
+    .auth h2 { font-size: 19px; margin-bottom: 4px; }
+    .auth-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.7; }
+    .auth-msg { font-size: 12px; color: var(--accent); background: var(--accent-soft);
+        border: 1px solid var(--accent-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 14px; }
+    .auth label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+    .auth input {
+        display: block; width: 100%; margin-top: 6px; background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border); color: var(--text-primary); border-radius: 9px;
+        padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; transition: var(--trans);
+    }
+    .auth input:focus { border-color: var(--accent-line); background: rgba(0, 229, 153, 0.04); }
+    .auth button {
+        width: 100%; height: 42px; border-radius: 9px; border: 1px solid var(--accent-line);
+        background: transparent; color: var(--accent); font-size: 14px; font-family: inherit;
+        cursor: pointer; transition: var(--trans); margin-top: 4px;
+    }
+    .auth button:hover { background: var(--accent-soft); }
+    .auth button.primary { background: var(--accent); border-color: var(--accent); color: #05130d; font-weight: 700; }
+    .auth button.primary:hover { filter: brightness(1.08); }
+    .auth button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth .code-row { display: flex; gap: 8px; margin-top: 6px; }
+    .auth .code-row input { margin-top: 0; }
+    .auth .code-row button { width: auto; flex-shrink: 0; padding: 0 12px; font-size: 12.5px; margin-top: 0; height: auto; }
+    .auth-switch { text-align: center; font-size: 12.5px; color: var(--text-muted); margin-top: 16px; }
+    .auth-switch a { color: var(--accent); text-decoration: none; }
+
+    .dev-list { text-align: left; margin: 10px 0 4px; }
+    .dev-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 12px; }
+    .dev-item:first-child { border-top: none; }
+    .dev-item .dev-name { flex: 1; color: var(--text-secondary); word-break: break-all; }
+    .dev-item button {
+        background: none; border: 1px solid var(--border); color: var(--text-muted);
+        border-radius: 6px; padding: 3px 8px; font-size: 11px; font-family: inherit; cursor: pointer;
+    }
+    .dev-item button:hover { color: var(--danger); border-color: var(--danger); }
+    @media (max-width: 480px) {
+        .wrap { padding-left: 12px; padding-right: 12px; }
+        .top { padding-left: 12px; padding-right: 12px; }
+        .msg { padding: 11px 12px; }
+    }
+</style>
+</head>
+<body>
+<header class="top">
+    <div class="top-row">
+        <a class="back" href="index.html" aria-label="返回">←</a>
+        <div class="title">短信收件箱<small id="whoami">免费使用 · 数据仅本人可见</small></div>
+        <button class="icon-btn" id="pairBtn" title="绑定新设备">🔗</button>
+        <button class="icon-btn" id="dedupeBtn" title="清理重复短信">🧹</button>
+        <button class="icon-btn" id="refreshBtn" title="刷新">↻</button>
+        <button class="icon-btn" id="adminBtn" title="用户管理" hidden>👤</button>
+        <button class="icon-btn" id="logoutBtn" title="退出登录" hidden>⏻</button>
+    </div>
+    <div class="search-row">
+        <input id="searchInput" type="search" placeholder="搜索号码或内容…" autocomplete="off">
+    </div>
+</header>
+
+<main class="wrap" id="wrap">
+    <div id="authBox" hidden></div>
+    <div class="stats" id="stats" hidden>
+        <span>共 <b id="statTotal">0</b> 条</span>
+        <span>设备 <b id="statDevices">0</b> 台</span>
+        <span id="statTime">—</span>
+    </div>
+    <div class="chips" id="chips" hidden></div>
+    <div id="list"></div>
+    <div class="footer-note">
+        短信由安卓客户端上传，需保持手机端「短信同步」APP 的短信权限与自启动权限。
+        <a href="downloads/linyuyang-sms.apk?v=1.5">下载客户端</a><br>
+        短信在服务器加密存储，仅本人可查看，保留 90 天后自动删除；每个账号最多 3000 条、5 台设备。
+    </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+    'use strict';
+
+    var API = 'api/sms.php';
+    var LIMIT = 200;
+    var messages = [];
+    var devices = {};
+    var activeDevice = '';
+    var searching = false;
+    var timer = null;
+    var currentUser = null;
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function fmtTime(ms) {
+        var d = new Date(ms);
+        var now = new Date();
+        var hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+        if (d.toDateString() === now.toDateString()) return '今天 ' + hm;
+        var y = new Date(now.getTime() - 86400000);
+        if (d.toDateString() === y.toDateString()) return '昨天 ' + hm;
+        if (d.getFullYear() === now.getFullYear()) return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + hm;
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + hm;
+    }
+
+    function toast(text) {
+        var el = document.getElementById('toast');
+        el.textContent = text;
+        el.classList.add('show');
+        clearTimeout(el._t);
+        el._t = setTimeout(function () { el.classList.remove('show'); }, 2200);
+    }
+
+    function setToolbar(enabled) {
+        ['pairBtn', 'dedupeBtn', 'refreshBtn'].forEach(function (id) {
+            document.getElementById(id).disabled = !enabled;
+        });
+        document.getElementById('logoutBtn').hidden = !enabled;
+    }
+
+    function apiPost(action, payload) {
+        return fetch(API + '?action=' + action, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {})
+        }).then(function (res) {
+            return res.json().catch(function () { return {}; }).then(function (data) {
+                return { status: res.status, data: data };
+            });
+        });
+    }
+
+    function showAuth(mode, message) {
+        currentUser = null;
+        setToolbar(false);
+        document.getElementById('adminBtn').hidden = true;
+        document.getElementById('stats').hidden = true;
+        document.getElementById('chips').hidden = true;
+        document.getElementById('list').innerHTML = '';
+        document.getElementById('whoami').textContent = '免费使用 · 数据仅本人可见';
+        var wrap = document.getElementById('authBox');
+        wrap.hidden = false;
+        var msg = message ? '<div class="auth-msg">' + esc(message) + '</div>' : '';
+        if (mode === 'register') {
+            wrap.innerHTML = '<div class="auth">' +
+                '<h2>免费注册</h2>' +
+                '<p class="auth-sub">短信自动同步到网页，随时查看。每人独立账号，数据互不可见。</p>' + msg +
+                '<form id="regForm">' +
+                '<label>邮箱<input id="regEmail" type="email" autocomplete="email" required placeholder="用于接收验证码"></label>' +
+                '<label>用户名<input id="regName" autocomplete="username" required placeholder="3-20 位，中英文/数字/下划线"></label>' +
+                '<label>密码<input id="regPass" type="password" autocomplete="new-password" required minlength="10" placeholder="至少 10 位，含字母和数字"></label>' +
+                '<label>邮箱验证码<div class="code-row"><input id="regCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位数字"><button type="button" id="sendCodeBtn">获取验证码</button></div></label>' +
+                '<button class="primary" type="submit" id="regSubmit">注册并登录</button>' +
+                '</form>' +
+                '<p class="auth-switch">已有账号？<a href="#" id="toLogin">直接登录</a></p>' +
+                '</div>';
+            document.getElementById('toLogin').onclick = function (e) { e.preventDefault(); showAuth('login'); };
+            document.getElementById('sendCodeBtn').onclick = sendCode;
+            document.getElementById('regForm').onsubmit = doRegister;
+        } else {
+            wrap.innerHTML = '<div class="auth">' +
+                '<h2>登录</h2>' +
+                '<p class="auth-sub">短信同步 · 免费使用，数据仅本人可见</p>' + msg +
+                '<form id="loginForm">' +
+                '<label>邮箱或用户名<input id="loginName" autocomplete="username" required></label>' +
+                '<label>密码<input id="loginPass" type="password" autocomplete="current-password" required></label>' +
+                '<button class="primary" type="submit">登录</button>' +
+                '</form>' +
+                '<p class="auth-switch">还没有账号？<a href="#" id="toRegister">免费注册</a></p>' +
+                '</div>';
+            document.getElementById('toRegister').onclick = function (e) { e.preventDefault(); showAuth('register'); };
+            document.getElementById('loginForm').onsubmit = doLogin;
+        }
+    }
+
+    // 未登录 / 会话过期统一回到登录页
+    function showGate(expired) {
+        showAuth('login', expired ? '登录已失效，请重新登录' : '请登录后查看短信');
+    }
+
+    function doLogin(e) {
+        e.preventDefault();
+        var btn = e.target.querySelector('button[type="submit"]');
+        var name = document.getElementById('loginName').value.trim();
+        var pass = document.getElementById('loginPass').value;
+        if (!name || !pass) return;
+        btn.disabled = true;
+        btn.textContent = '登录中…';
+        apiPost('login', { login: name, password: pass }).then(function (r) {
+            if (r.data && r.data.success) {
+                toast('登录成功');
+                currentUser = r.data.user;
+                enterApp();
+                loadMessages();
+            } else {
+                toast((r.data && r.data.message) || '登录失败');
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+        }).catch(function () {
+            toast('网络异常，请稍后重试');
+            btn.disabled = false;
+            btn.textContent = '登录';
+        });
+    }
+
+    var codeTimer = null;
+
+    function sendCode() {
+        var btn = document.getElementById('sendCodeBtn');
+        var email = document.getElementById('regEmail').value.trim();
+        var username = document.getElementById('regName').value.trim();
+        var password = document.getElementById('regPass').value;
+        if (!email || !username || !password) {
+            toast('请先填写邮箱、用户名和密码');
+            return;
+        }
+        btn.disabled = true;
+        btn.textContent = '发送中…';
+        apiPost('send-code', { email: email, username: username, password: password }).then(function (r) {
+            if (r.data && r.data.success) {
+                toast('验证码已发送，请查收邮件');
+                var left = 60;
+                btn.textContent = left + ' 秒';
+                clearInterval(codeTimer);
+                codeTimer = setInterval(function () {
+                    left--;
+                    if (left <= 0) {
+                        clearInterval(codeTimer);
+                        btn.disabled = false;
+                        btn.textContent = '重新获取';
+                    } else {
+                        btn.textContent = left + ' 秒';
+                    }
+                }, 1000);
+            } else {
+                btn.disabled = false;
+                btn.textContent = '获取验证码';
+                toast((r.data && r.data.message) || '发送失败');
+            }
+        }).catch(function () {
+            btn.disabled = false;
+            btn.textContent = '获取验证码';
+            toast('网络异常，请稍后重试');
+        });
+    }
+
+    function doRegister(e) {
+        e.preventDefault();
+        var btn = document.getElementById('regSubmit');
+        var email = document.getElementById('regEmail').value.trim();
+        var code = document.getElementById('regCode').value.trim();
+        if (code.length !== 6) { toast('请输入 6 位验证码'); return; }
+        btn.disabled = true;
+        btn.textContent = '注册中…';
+        apiPost('register', { email: email, code: code }).then(function (r) {
+            if (r.data && r.data.success) {
+                toast('注册成功');
+                currentUser = r.data.user;
+                enterApp();
+                loadMessages();
+            } else {
+                toast((r.data && r.data.message) || '注册失败');
+                btn.disabled = false;
+                btn.textContent = '注册并登录';
+            }
+        }).catch(function () {
+            toast('网络异常，请稍后重试');
+            btn.disabled = false;
+            btn.textContent = '注册并登录';
+        });
+    }
+
+    function logout() {
+        apiPost('logout', {}).then(function () {
+            showAuth('login', '已退出登录');
+        }).catch(function () {
+            showAuth('login', '已退出登录');
+        });
+    }
+
+    function enterApp() {
+        setToolbar(true);
+        document.getElementById('adminBtn').hidden = !(currentUser && currentUser.role === 'admin');
+        var box = document.getElementById('authBox');
+        box.hidden = true;
+        box.innerHTML = '';
+        document.getElementById('whoami').textContent =
+            ((currentUser && currentUser.username) || '我的账号') + ' · 数据仅本人可见';
+    }
+
+    function renderChips() {
+        var chips = document.getElementById('chips');
+        var names = Object.keys(devices);
+        if (names.length <= 1) {
+            chips.hidden = true;
+            return;
+        }
+        chips.hidden = false;
+        var html = '<button class="chip' + (activeDevice === '' ? ' active' : '') + '" data-device="">全部设备</button>';
+        names.forEach(function (n) {
+            html += '<button class="chip' + (activeDevice === n ? ' active' : '') + '" data-device="' + esc(n) + '">' + esc(n) + '</button>';
+        });
+        chips.innerHTML = html;
+    }
+
+    function renderList() {
+        var list = document.getElementById('list');
+        if (searching) {
+            list.innerHTML = '<div class="empty">正在搜索…</div>';
+            return;
+        }
+        if (!messages.length) {
+            list.innerHTML = '<div class="empty">' +
+                (activeDevice ? '该设备暂无短信' : '暂无短信，等手机收到新短信后会自动出现') + '</div>';
+            return;
+        }
+        var html = '';
+        messages.forEach(function (m) {
+            html += '<article class="msg" data-id="' + esc(m.id) + '">' +
+                '<div class="msg-head">' +
+                '<span class="sender">' + esc(m.sender || '未知号码') + '</span>' +
+                '<span class="device">' + esc(m.device || '') + '</span>' +
+                '<span class="time">' + fmtTime(m.time) + '</span>' +
+                '</div>' +
+                '<div class="body">' + esc(m.body) + '</div>' +
+                '<div class="msg-foot"><button class="del" data-del="' + esc(m.id) + '">删除</button></div>' +
+                '</article>';
+        });
+        list.innerHTML = html;
+    }
+
+    function renderStats(total) {
+        document.getElementById('stats').hidden = false;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statDevices').textContent = Object.keys(devices).length;
+        document.getElementById('statTime').textContent = '更新于 ' + fmtTime(Date.now());
+    }
+
+    function loadMessages() {
+        var btn = document.getElementById('refreshBtn');
+        btn.classList.add('spinning');
+
+        var q = document.getElementById('searchInput').value.trim();
+        var url = API + '?action=list&limit=' + LIMIT;
+        if (activeDevice) url += '&device=' + encodeURIComponent(activeDevice);
+        if (q) url += '&q=' + encodeURIComponent(q);
+        searching = !!q;
+
+        fetch(url, { credentials: 'include', cache: 'no-store' })
+            .then(function (res) {
+                if (res.status === 401 || res.status === 403) { showGate(true); throw new Error('forbidden'); }
+                return res.json();
+            })
+            .then(function (data) {
+                if (!data || data.success !== true) return;
+                if (data.user && data.user.username) {
+                    currentUser = data.user;
+                    document.getElementById('whoami').textContent =
+                        data.user.username + ' · 数据仅本人可见';
+                }
+                messages = data.messages || [];
+                devices = data.devices || {};
+                searching = false;
+                renderChips();
+                renderStats(data.total || messages.length);
+                renderList();
+            })
+            .catch(function () { searching = false; })
+            .finally(function () { btn.classList.remove('spinning'); });
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadMessages);
+
+    // 清理历史重复：同一设备 同号码 同内容 且时间相差 90 秒内的记录只保留最新一条
+    function dedupeAll() {
+        if (!confirm('将合并「同一号码 + 相同内容 + 时间相差 90 秒内」的重复短信，保留最新一条。确定继续？')) return;
+        var btn = document.getElementById('dedupeBtn');
+        btn.disabled = true;
+        fetch(API + '?action=dedupe', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        }).then(function (res) {
+            if (res.status === 401 || res.status === 403) { showGate(true); throw new Error('forbidden'); }
+            return res.json();
+        }).then(function (data) {
+            if (data && data.success) {
+                toast(data.removed > 0 ? ('已清理 ' + data.removed + ' 条重复短信') : '没有发现重复短信');
+                loadMessages();
+            } else {
+                toast((data && data.message) || '清理失败');
+            }
+        }).catch(function () {}).finally(function () { btn.disabled = false; });
+    }
+
+    document.getElementById('dedupeBtn').addEventListener('click', dedupeAll);
+
+    // 生成一次性设备绑定码
+    function showPairCode(code) {
+        var mask = document.createElement('div');
+        mask.className = 'pair-mask';
+        mask.innerHTML = '<div class="pair-box">' +
+            '<h3>设备绑定码</h3>' +
+            '<div class="pair-code">' + esc(code) + '</div>' +
+            '<p>打开手机「短信同步」APP，点「输入绑定码」填入以上 6 位数字。<br>10 分钟内有效，且只能使用一次。</p>' +
+            '<div class="dev-list" id="pairDevList"></div>' +
+            '<button class="pair-close">关闭</button>' +
+            '</div>';
+        document.body.appendChild(mask);
+        mask.addEventListener('click', function (e) {
+            if (e.target === mask || e.target.className === 'pair-close') mask.remove();
+        });
+        loadPairDevices(mask);
+    }
+
+    function loadPairDevices(mask) {
+        var box = mask.querySelector('#pairDevList');
+        if (!box) return;
+        fetch(API + '?action=devices', { credentials: 'include', cache: 'no-store' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data || !data.success || !data.devices || !data.devices.length) {
+                    box.innerHTML = '<p style="font-size:11.5px">还没有已绑定的设备（最多 5 台）</p>';
+                    return;
+                }
+                box.innerHTML = '<p style="font-size:11.5px;margin-bottom:4px">已绑定设备（最多 5 台）</p>' +
+                    data.devices.map(function (d) {
+                        return '<div class="dev-item"><span class="dev-name">' + esc(d.name) +
+                            '</span><button data-key="' + esc(d.key) + '">解绑</button></div>';
+                    }).join('');
+                box.onclick = function (e) {
+                    var btn = e.target.closest('button[data-key]');
+                    if (!btn) return;
+                    if (!confirm('解绑后该设备将无法再上传短信，确定吗？')) return;
+                    btn.disabled = true;
+                    apiPost('revoke-device', { key: btn.getAttribute('data-key') }).then(function (r) {
+                        if (r.data && r.data.success) {
+                            toast('已解绑');
+                            loadPairDevices(mask);
+                        } else {
+                            toast((r.data && r.data.message) || '解绑失败');
+                            btn.disabled = false;
+                        }
+                    }).catch(function () { btn.disabled = false; });
+                };
+            })
+            .catch(function () {});
+    }
+
+    function pairDevice() {
+        var btn = document.getElementById('pairBtn');
+        btn.disabled = true;
+        fetch(API + '?action=pair-code', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        }).then(function (res) {
+            if (res.status === 401 || res.status === 403) { showGate(true); throw new Error('forbidden'); }
+            return res.json();
+        }).then(function (data) {
+            if (data && data.success && data.code) {
+                showPairCode(data.code);
+            } else {
+                toast((data && data.message) || '生成绑定码失败');
+            }
+        }).catch(function () {}).finally(function () { btn.disabled = false; });
+    }
+
+    document.getElementById('pairBtn').addEventListener('click', pairDevice);
+
+    // ---------- 管理员：用户列表与封禁 ----------
+    function showAdminPanel() {
+        var mask = document.createElement('div');
+        mask.className = 'pair-mask';
+        mask.innerHTML = '<div class="admin-box">' +
+            '<h3>用户管理</h3>' +
+            '<p class="hint">封禁会立即撤销该账号的全部登录会话并阻止登录；数据保留，解封后恢复。</p>' +
+            '<div id="adminList">加载中…</div>' +
+            '<button class="pair-close">关闭</button>' +
+            '</div>';
+        document.body.appendChild(mask);
+        mask.addEventListener('click', function (e) {
+            if (e.target === mask || e.target.className === 'pair-close') mask.remove();
+        });
+        loadAdminUsers(mask);
+    }
+
+    function loadAdminUsers(mask) {
+        var box = mask.querySelector('#adminList');
+        fetch(API + '?action=admin-users', { credentials: 'include', cache: 'no-store' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data || !data.success || !data.users) {
+                    box.innerHTML = '<p style="font-size:12px;color:var(--text-muted)">' +
+                        esc((data && data.message) || '读取失败') + '</p>';
+                    return;
+                }
+                if (!data.users.length) {
+                    box.innerHTML = '<p style="font-size:12px;color:var(--text-muted)">还没有注册用户</p>';
+                    return;
+                }
+                box.innerHTML = data.users.map(function (u) {
+                    return '<div class="admin-row' + (u.banned ? ' banned' : '') + '">' +
+                        '<div class="who"><div class="name">' + esc(u.username || u.id) +
+                        (u.banned ? '（已封禁）' : '') + '</div>' +
+                        '<div class="meta">' + esc(u.email) + ' · 短信 ' + u.messages + ' 条 · 设备 ' +
+                        u.devices + ' 台' + (u.lastLogin ? ' · 最近登录 ' + fmtTime(u.lastLogin * 1000) : '') +
+                        '</div></div>' +
+                        '<button class="' + (u.banned ? 'unban' : 'ban') + '" data-id="' + esc(u.id) +
+                        '" data-banned="' + (u.banned ? '1' : '0') + '">' +
+                        (u.banned ? '解封' : '封禁') + '</button></div>';
+                }).join('');
+                box.onclick = function (e) {
+                    var btn = e.target.closest('button[data-id]');
+                    if (!btn) return;
+                    var banned = btn.getAttribute('data-banned') === '1';
+                    if (!confirm(banned ? '确定解封该账号？' : '确定封禁该账号？其所有登录会话将立即失效。')) return;
+                    btn.disabled = true;
+                    apiPost('admin-ban', { id: btn.getAttribute('data-id'), banned: !banned }).then(function (r) {
+                        if (r.data && r.data.success) {
+                            toast(banned ? '已解封' : '已封禁');
+                            loadAdminUsers(mask);
+                        } else {
+                            toast((r.data && r.data.message) || '操作失败');
+                            btn.disabled = false;
+                        }
+                    }).catch(function () { btn.disabled = false; });
+                };
+            })
+            .catch(function () { box.innerHTML = '<p style="font-size:12px">网络异常</p>'; });
+    }
+
+    document.getElementById('adminBtn').addEventListener('click', showAdminPanel);
+
+    document.getElementById('searchInput').addEventListener('input', function () {
+        clearTimeout(this._t);
+        var self = this;
+        this._t = setTimeout(loadMessages, 350);
+    });
+
+    document.getElementById('chips').addEventListener('click', function (e) {
+        var chip = e.target.closest('.chip');
+        if (!chip) return;
+        activeDevice = chip.getAttribute('data-device') || '';
+        loadMessages();
+    });
+
+    document.getElementById('list').addEventListener('click', function (e) {
+        var btn = e.target.closest('.del');
+        if (!btn) return;
+        var id = btn.getAttribute('data-del');
+        if (!id || !confirm('删除这条短信？删除后无法恢复。')) return;
+        btn.disabled = true;
+        fetch(API + '?action=delete', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        }).then(function (res) {
+            if (res.status === 401 || res.status === 403) { showGate(true); throw new Error('forbidden'); }
+            return res.json();
+        }).then(function (data) {
+            if (data && data.success) {
+                var card = document.querySelector('.msg[data-id="' + id + '"]');
+                if (card) card.remove();
+                toast('已删除');
+                loadMessages();
+            } else {
+                toast((data && data.message) || '删除失败');
+                btn.disabled = false;
+            }
+        }).catch(function () { btn.disabled = false; });
+    });
+
+    // 自动刷新：页面可见时每 20 秒
+    function schedule() {
+        if (timer) clearInterval(timer);
+        timer = setInterval(function () {
+            if (!document.hidden) loadMessages();
+        }, 20000);
+    }
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) loadMessages();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    function boot() {
+        setToolbar(false);
+        fetch(API + '?action=me', { credentials: 'include', cache: 'no-store' })
+            .then(function (res) {
+                if (res.status === 401) return null;
+                return res.json();
+            })
+            .then(function (data) {
+                if (!data || !data.success) { showAuth('login'); return; }
+                currentUser = data.user;
+                enterApp();
+                loadMessages();
+                schedule();
+            })
+            .catch(function () { showAuth('login', '网络异常，请稍后重试'); });
+    }
+    boot();
+})();
+</script>
+</body>
+</html>
